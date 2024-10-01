@@ -1,0 +1,79 @@
+1. Django signals are executed synchronously by default. When we connect a signal to a receiver, the receiver function is called immediately after the signal is sent.
+
+
+my_signal = Signal()
+
+@receiver(my_signal)
+def my_receiver(sender, **kwargs): 
+    print("Signal received!")
+
+my_signal.send(sender=None)
+
+In the above, the receiver function will be called whenever the Signal is sent.
+
+2. Django signals run in the same thread as the caller by default. When a signal is sent, the connected receiver functions are executed in the same thread that triggered the signal. This means that the execution of the receiver will block the caller until the receiver completes its task.
+
+from django.db import models
+
+class Book(models.Model):
+    title = models.CharField(max_length=100)
+    author = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.title
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from .models import Book
+
+@receiver(post_save, sender=Book)
+def book_saved(sender, instance, created, **kwargs):
+    if created:
+        print(f'New book created: {instance.title} by {instance.author}')
+    else:
+        print(f'Book updated: {instance.title} by {instance.author}')
+
+we set up a Django signal that listens for the post_save event of the Book model. The signal runs in the same thread as the caller by default, printing messages whenever a Book instance is created or updated. 
+
+3. By default, Django signals do not run in the same database transaction as the caller. This means that if a signal is triggered during a database operation (like saving a model), the signal's receiver will execute immediately, but it does not have transactional behavior tied to that operation.
+
+class Book(models.Model):
+    title = models.CharField(max_length=100)
+    author = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.title
+class LogEntry(models.Model):
+    message = models.CharField(max_length=200)
+    book = models.ForeignKey(Book, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.message
+
+
+The first Book creation will succeed.
+The second creation will raise an error due to a unique constraint violation (same title and author).
+Signal Behavior:
+
+Despite the transaction failing, if you check for LogEntry records, you’ll find that the log entry for the first Book creation was still recorded because the signal's actions are not wrapped in the same transaction as the original Book creation.
+
+This example demonstrates that Django signals do not run in the same database transaction as the caller. The signal handler created a log entry, which persisted even though the original transaction was rolled back due to an error.
+
+
+
+
+1. class Rectangle:
+    def __init__(self, length: int, width: int):
+        self.length = length
+        self.width = width
+
+    def __iter__(self):
+       
+        yield {'length': self.length}
+        yield {'width': self.width}
+
+ 
+if __name__ == "__main__":
+    rect = Rectangle(10, 5)
+
+    for dimension in rect:
+        print(dimension)
